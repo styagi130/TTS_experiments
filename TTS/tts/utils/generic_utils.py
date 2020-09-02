@@ -11,6 +11,18 @@ from collections import Counter
 from TTS.utils.generic_utils import check_argument
 
 
+def pad_list(batch_list):
+    """
+        https://github.com/ming024/FastSpeech2/blob/35efa49ecf79cfbcec058248a42a5eedcbf967d2/utils.py#L171
+    """
+    max_len = max([tokens.size(0) for tokens in batch_list])
+    n_batch = len(batch_list)
+    padded_batch = batch_list[0].new_zeros(n_batch, max_len, *batch_list[0].size()[1:])
+    for idx in range(n_batch):
+        padded_batch[idx, :batch_list[idx].size(0)] = batch_list[idx]
+
+    return padded_batch
+
 def split_dataset(items):
     is_multi_speaker = False
     speakers = [item[-1] for item in items]
@@ -47,6 +59,14 @@ def sequence_mask(sequence_length, max_len=None):
         sequence_length.unsqueeze(1).expand_as(seq_range_expand))
     # B x T_max
     return seq_range_expand < seq_length_expand
+
+def generate_masks_mel_length(mel_lengths) -> torch.Tensor:
+    batch_size = mel_lengths.size(0)
+    max_len = int(torch.max(mel_lengths).item())
+    
+    mel_range_expanded = torch.arange(0,max_len).long().expand(batch_size, max_len)
+    return mel_range_expanded < mel_lengths.unsqueeze(1).expand(batch_size, max_len).long()
+    
 
 
 def setup_model(num_chars, num_speakers, c):
@@ -96,6 +116,16 @@ def setup_model(num_chars, num_speakers, c):
                         bidirectional_decoder=c.bidirectional_decoder,
                         double_decoder_consistency=c.double_decoder_consistency,
                         ddc_r=c.ddc_r)
+    elif c.model.lower() == "fastspeech2":
+        model = MyModel(num_chars,
+                        c.audio['num_mels'],
+                        c.input_channels,
+                        c.encoder_kernel_size,
+                        c.decoder_kernel_size,
+                        c.variance_adaptor_kernel_size,
+                        c.pitch_bank_param_dict,
+                        c.energy_bank_param_dict,
+                        use_postnet=c.use_postnet)
     return model
 
 class KeepAverage():
