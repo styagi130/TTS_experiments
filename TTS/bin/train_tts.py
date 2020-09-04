@@ -60,6 +60,14 @@ def setup_loader(ap, r, is_val=False, verbose=False):
             use_phonemes=c.use_phonemes,
             phoneme_language=c.phoneme_language,
             enable_eos_bos=c.enable_eos_bos_chars,
+            use_mels_from_file=self.config.use_mels_from_file,
+            return_pitch=self.config.return_pitch,
+            return_energy=self.config.return_energy,
+            return_duration=self.config.return_duration,
+            mel_dir=self.config.mel_dir,
+            energy_dir=self.config.energy_dir,
+            pitch_dir=self.config.pitch_dir,
+            duration_dir=self.config.duration_dir,
             verbose=verbose)
         sampler = DistributedSampler(dataset) if num_gpus > 1 else None
         loader = DataLoader(

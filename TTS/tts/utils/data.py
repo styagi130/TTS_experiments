@@ -23,12 +23,11 @@ def _pad_tensor(x, length):
     return x
 
 
-def prepare_tensor(inputs, out_steps):
-    max_len = max((x.shape[1] for x in inputs))
+def prepare_tensor(inputs, out_steps, pad_dim=1):
+    max_len = max((x.shape[pad_dim] for x in inputs))
     remainder = max_len % out_steps
     pad_len = max_len + (out_steps - remainder) if remainder > 0 else max_len
     return np.stack([_pad_tensor(x, pad_len) for x in inputs])
-
 
 def _pad_stop_target(x, length):
     _pad = 0.

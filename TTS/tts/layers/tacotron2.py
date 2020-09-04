@@ -6,7 +6,7 @@ from .common_layers import init_attn, Prenet, Linear
 
 
 class ConvBNBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, activation=None):
+    def __init__(self, in_channels, out_channels, kernel_size, activation=None, drop_out=0.5):
         super(ConvBNBlock, self).__init__()
         assert (kernel_size - 1) % 2 == 0
         padding = (kernel_size - 1) // 2
@@ -14,8 +14,8 @@ class ConvBNBlock(nn.Module):
                                        out_channels,
                                        kernel_size,
                                        padding=padding)
-        self.batch_normalization = nn.BatchNorm1d(out_channels, momentum=0.1, eps=1e-5)
-        self.dropout = nn.Dropout(p=0.5)
+        self.normalization = nn.BatchNorm1d(out_channels, momentum=0.1, eps=1e-5)
+        self.dropout = nn.Dropout(p=drop_out)
         if activation == 'relu':
             self.activation = nn.ReLU()
         elif activation == 'tanh':
@@ -25,8 +25,8 @@ class ConvBNBlock(nn.Module):
 
     def forward(self, x):
         o = self.convolution1d(x)
-        o = self.batch_normalization(o)
         o = self.activation(o)
+        o = self.normalization(o)
         o = self.dropout(o)
         return o
 

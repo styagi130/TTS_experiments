@@ -121,3 +121,10 @@ def phoneme_cleaners(text):
     text = remove_aux_symbols(text)
     text = collapse_whitespace(text)
     return text
+
+def phoneme_cleaners_unicode(text):
+    '''Pipeline for phonemes mode, including number and abbreviation expansion.'''
+    text = replace_symbols(text)
+    text = remove_aux_symbols(text)
+    text = collapse_whitespace(text)
+    return text

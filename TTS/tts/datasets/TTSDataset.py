@@ -3,6 +3,7 @@ import numpy as np
 import collections
 import torch
 import random
+import pathlib
 from torch.utils.data import Dataset
 
 from TTS.tts.utils.text import text_to_sequence, phoneme_to_sequence, pad_with_eos_bos
@@ -24,6 +25,14 @@ class MyDataset(Dataset):
                  phoneme_cache_path=None,
                  phoneme_language="en-us",
                  enable_eos_bos=False,
+                 use_mels_from_file:bool=False,
+                 return_pitch:bool=False,
+                 return_energy:bool=False,
+                 return_duration:bool=False,
+                 mel_dir:pathlib.Path=None,
+                 energy_dir:pathlib.Path=None,
+                 pitch_dir:pathlib.Path=None,
+                 duration_dir:pathlib.Path=None,
                  verbose=False):
         """
         Args:
@@ -59,6 +68,20 @@ class MyDataset(Dataset):
         self.phoneme_language = phoneme_language
         self.enable_eos_bos = enable_eos_bos
         self.verbose = verbose
+
+        self.use_mels_from_file = use_mels_from_file
+        if self.use_mels_from_file:
+            self.mel_dir = self.validate_feat_dir(mel_dir)
+        self.return_pitch = return_pitch
+        if self.return_pitch:
+            self.pitch_dir = self.validate_feat_dir(pitch_dir)
+        self.return_energy = return_energy
+        if self.return_energy:
+            self.energy_dir = self.validate_feat_dir(energy_dir)
+        self.return_duration = return_duration
+        if self.return_duration:
+            self.duration_dir = self.validate_feat_dir(duration_dir)
+
         if use_phonemes and not os.path.isdir(phoneme_cache_path):
             os.makedirs(phoneme_cache_path, exist_ok=True)
         if self.verbose:
@@ -68,6 +91,15 @@ class MyDataset(Dataset):
                 print("   | > phoneme language: {}".format(phoneme_language))
             print(" | > Number of instances : {}".format(len(self.items)))
         self.sort_items()
+
+    def validate_feat_dir(self,feat_dir):
+        assert True if feat_dir else False, "Please pass the appropriate values for pitch_dir, for getting pitch information"
+        if not isinstance(feat_dir,pathlib.Path):
+            feat_dir = pathlib.Path(feat_dir)
+        assert feat_dir.exists(),f"The directory {feat_dir} does not exist"
+        return feat_dir
+
+
 
     def load_wav(self, filename):
         audio = self.ap.load_wav(filename)
@@ -113,19 +145,22 @@ class MyDataset(Dataset):
     def load_data(self, idx):
         text, wav_file, speaker_name = self.items[idx]
         wav = np.asarray(self.load_wav(wav_file), dtype=np.float32)
-
+        if self.use_mels_from_file:
+            wav_stem = pathlib.Path(wav_file).stem
+        else:
+            wav_stem = None
         if self.use_phonemes:
             text = self._load_or_generate_phoneme_sequence(wav_file, text)
         else:
             text = np.asarray(
                 text_to_sequence(text, [self.cleaners], tp=self.tp), dtype=np.int32)
-
         assert text.size > 0, self.items[idx][1]
         assert wav.size > 0, self.items[idx][1]
 
         sample = {
             'text': text,
             'wav': wav,
+            "wav_stem": wav_stem,
             'item_idx': self.items[idx][1],
             'speaker_name': speaker_name
         }
@@ -191,11 +226,35 @@ class MyDataset(Dataset):
                 batch[idx]['item_idx'] for idx in ids_sorted_decreasing
             ]
             text = [batch[idx]['text'] for idx in ids_sorted_decreasing]
+            wav_stems = [batch[idx]['wav_stem'] for idx in ids_sorted_decreasing]
             speaker_name = [batch[idx]['speaker_name']
                             for idx in ids_sorted_decreasing]
 
             # compute features
-            mel = [self.ap.melspectrogram(w).astype('float32') for w in wav]
+            if self.use_mels_from_file:
+                mel = [np.load(self.mel_dir/f"{w}.npy").astype('float32') for w in wav_stems]
+            else:
+                mel = [self.ap.melspectrogram(w).astype('float32') for w in wav]
+            if self.return_pitch:
+                pitch = [np.load(self.pitch_dir/f"{w}.npy").astype('float32') for w in wav_stems]
+                pitch = prepare_data(pitch).astype(np.float32)
+                pitch = torch.LongTensor(pitch)
+            else:
+                pitch = None
+            if self.return_energy:
+                energy = [np.load(self.energy_dir/f"{w}.npy").astype('float32') for w in wav_stems]
+                energy = prepare_data(energy).astype(np.float32)
+                energy = torch.LongTensor(energy)
+            else:
+                energy = None
+            if self.return_duration:
+                duration = [np.load(self.duration_dir/f"{w}.npy").astype('float32') for w in wav_stems]
+                duration = prepare_data(duration).astype(np.float32)
+                duration = torch.LongTensor(duration)
+
+
+            else:
+                duration = None
 
             mel_lengths = [m.shape[1] for m in mel]
 
@@ -210,7 +269,6 @@ class MyDataset(Dataset):
 
             # PAD sequences with longest instance in the batch
             text = prepare_data(text).astype(np.int32)
-
             # PAD features with longest instance
             mel = prepare_tensor(mel, self.outputs_per_step)
 
@@ -234,7 +292,7 @@ class MyDataset(Dataset):
             else:
                 linear = None
             return text, text_lenghts, speaker_name, linear, mel, mel_lengths, \
-                   stop_targets, item_idxs
+                   stop_targets, item_idxs, energy, pitch, duration
 
         raise TypeError(("batch must contain tensors, numbers, dicts or lists;\
                          found {}".format(type(batch[0]))))

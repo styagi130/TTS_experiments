@@ -3,6 +3,7 @@ import soundfile as sf
 import numpy as np
 import scipy.io
 import scipy.signal
+import pyworld as pw
 
 from TTS.tts.utils.data import StandardScaler
 
@@ -226,6 +227,37 @@ class AudioProcessor(object):
             D = self._stft(y)
         S = self._amp_to_db(self._linear_to_mel(np.abs(D)))
         return self._normalize(S)
+
+    def pitch_per_frame(self,x):
+        if self.preemphasis != 0:
+            x = np.abs(self.apply_preemphasis(y))
+        f0, t = pw.dio(x.astype(np.float64), self.sample_rate, frame_period = self.hop_length/self.sample_rate*1000)
+        return f0
+
+    def energy_per_frame(self,y):
+        if self.preemphasis != 0:
+            magitude = np.abs(self._stft(self.apply_preemphasis(y)))
+        else:
+            magitude = np.abs(self._stft(y))
+        energy = np.linalg.norm(magitude,axis=0)
+        return energy
+
+    def get_mel_energy_pitch(self,x):
+        if self.preemphasis != 0:
+            x = self.apply_preemphasis(x)
+
+        # calculate stft
+        D = self._stft(x)
+        mels = self._normalize(self._amp_to_db(self._linear_to_mel(np.abs(D))))
+        energy = np.linalg.norm(np.abs(D),axis=0)
+        f0, t = pw.dio(x.astype(np.float64), self.sample_rate, frame_period = self.hop_length/self.sample_rate*1000)
+        f0 = self.__adjust_f0_length(f0, mels)
+        return mels, energy, f0
+
+    def __adjust_f0_length(self, f0, mels):
+        if f0.shape[0] < mels.shape[1]:
+            return np.pad(f0, (0,mels.shape[1]-f0.shape[0]), "constant", constant_values=(0,0))
+        return f0[:mels.shape[1]]
 
     def inv_spectrogram(self, spectrogram):
         """Converts spectrogram to waveform using librosa"""

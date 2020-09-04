@@ -205,3 +205,16 @@ def custom_turkish(root_path, meta_file):
             items.append([text, wav_file, speaker_name])
     print(f" [!] {len(skipped_files)} files skipped. They don't exist...")
     return items
+
+def custom_kwantics_hinglish(root_path, meta_file=None):
+    items = []
+    with open(meta_file, 'r') as ttf:
+        for line in ttf:
+            cols = line.split('|')
+            wav_file = os.path.join(root_path, cols[0] + '.wav')
+            text = cols[1]
+            speaker_name = cols[2]
+            items.append([text, wav_file, speaker_name.strip()])
+    for item in items:
+        assert os.path.exists(item[1]), f" [!] wav files don't exist - {item[1]}"
+    return items
