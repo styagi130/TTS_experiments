@@ -5,21 +5,23 @@ import numpy as np
 
 sys.path.append("./..")
 from TTS.tts.layers.fastspeech2 import MultiheadedAttention, Convd1d2Layers, FFT, Transformer, VarianceAdaptor
-from TTS.tts.models.fastspeech2 import FastSpeech2
-
-
+from TTS.tts.layers.losses import Fastspeech2Loss
+from TTS.tts.models.fastspeech2 import Fastspeech2
+from TTS.utils.io import AttrDict
 
 def gen_batch(batch_size, num_tokens, embedding_dim):
     return torch.randn(size=(batch_size, num_tokens, embedding_dim))
 
-def gen_batch_mask(batch):
-    batch_size, num_tokens = batch.size()[:2]
-    print (batch_size, num_tokens)
+def gen_batch_mask(batch_size, num_tokens = 10):
+    num_tokens = 10
     sequence_lengths = torch.randint(low=num_tokens//2, high=num_tokens, size=(batch_size,))
+    num_tokens = sequence_lengths.max().item()
+    batch = torch.randint(low=0,high=20,size=(batch_size, num_tokens))
+
     seq_range = torch.arange(0,num_tokens).long()
     seq_range_expanded = seq_range.unsqueeze(0).expand(batch_size, num_tokens)
     sequence_lengths_expanded = sequence_lengths.unsqueeze(1).expand_as(seq_range_expanded)
-    return sequence_lengths, seq_range_expanded < sequence_lengths_expanded
+    return batch, sequence_lengths, seq_range_expanded < sequence_lengths_expanded
 
 def test_MultiheadedAttention(batch,do_mask=False):
     args_dict = {
@@ -140,8 +142,7 @@ def test_variance_adaptor(batch, do_mask=False):
     pitch = torch.randn(size=(batch_size, durations_max)).unsqueeze(-1)
     energy = torch.randn(size=(batch_size, durations_max)).unsqueeze(-1)
     batch, duration_p, pitch_p, energy_p, mel_mask = v_a(batch, sequence_lengths, 
-                                                        label_durations=durations, label_pitch=pitch, label_energy=energy,
-                                                        input_mask=mask)
+                                                        label_durations=durations, label_pitch=pitch, label_energy=energy)
 
     print ("\n##############VA Train Tests#############\n")
     print (batch.shape, duration_p.shape, pitch_p.shape, energy_p.shape, mel_mask.shape)
@@ -164,7 +165,7 @@ def test_fastspeech2(batch, do_mask):
     kwargs_dict = {
                     "use_postnet": False
                   }
-    model = FastSpeech2(*args_dict.values(), **kwargs_dict)
+    model = Fastspeech2(*args_dict.values(), **kwargs_dict)
     print ("\n##############SequenceLe#############\n")
     print (sequence_lengths)
 
@@ -183,11 +184,46 @@ def test_fastspeech2(batch, do_mask):
     pitch = torch.randn(size=(batch_size, durations_max)).unsqueeze(-1)
     energy = torch.randn(size=(batch_size, durations_max)).unsqueeze(-1)
     mels_post, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments = model(batch, sequence_lengths, 
-                                                        label_durations=durations, label_pitch=pitch, label_energy=energy,
-                                                        input_mask=mask)
+                                                        label_durations=durations, label_pitch=pitch, label_energy=energy)
 
     print("\n##############VA Train Tests#############\n")
     print(mels_post.shape, duration_p.shape, pitch_p.shape, energy_p.shape)
+
+def test_fastspeech2Loss(batch_size, do_mask):
+    config = AttrDict({'loss_masking': True, "seq_len_norm": False})
+    batch, sequence_lengths, mask = gen_batch_mask(batch_size)
+    args_dict = {
+                    "num_inputs": 40,
+                    "num_out_mels": 80,
+                    "num_input_channels": batch.size(-1),
+                    "encoder_kernel_size": 3,
+                    "decoder_kernel_size": 3,
+                    "variance_adaptor_kernel_size": 3,
+                    "pitch_bank_param_dict": {"kernel_size":3,"drop_out":0.5},
+                    "energy_bank_param_dict": {"kernel_size":3,"drop_out":0.5}
+                }
+    kwargs_dict = {
+                    "use_postnet": False
+                  }
+    model = Fastspeech2(*args_dict.values(), **kwargs_dict)
+    print ("\n##############SequenceLe#############\n")
+    print (sequence_lengths,mask.shape)
+
+    # Test training, i.e given duration, pitch, energy
+    model.train()
+    durations = torch.randint(low=2, high=6, size=batch.size())
+    mel_lengths = torch.tensor([duration[:idx].sum() for duration, idx in zip(durations, sequence_lengths)])
+    durations_max = mel_lengths.max()
+    pitch = torch.randn(size=(batch_size, durations_max)).unsqueeze(-1)
+    energy = torch.randn(size=(batch_size, durations_max)).unsqueeze(-1)
+
+    mels_post, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments = model(batch, sequence_lengths, 
+                                                        label_durations=durations, label_pitch=pitch, label_energy=energy)
+    criterion = Fastspeech2Loss(config)
+    loss_dict = criterion(mels, mels.detach(), duration_p, durations.unsqueeze(2), pitch_p, pitch, energy_p, energy, sequence_lengths, mel_lengths)
+    loss_dict = {key:value.item() for key,value in loss_dict.items()}
+    print ("\n##############Loss dict is#############\n")
+    print (loss_dict)
 
 
 if __name__ == "__main__":
@@ -200,5 +236,6 @@ if __name__ == "__main__":
     #test_FFT(batch,do_mask=do_mask)
     #test_Transformer(batch, do_mask=DO_MASK)
     #test_variance_adaptor(batch, do_mask=DO_MASK)
-    batch = torch.randint(low=0,high=20,size=(batch_size, num_tokens))
-    test_fastspeech2(batch, do_mask=DO_MASK)
+    #batch = torch.randint(low=0,high=20,size=(batch_size, num_tokens))
+    #test_fastspeech2(batch, do_mask=DO_MASK)
+    test_fastspeech2Loss(batch_size, do_mask=DO_MASK)

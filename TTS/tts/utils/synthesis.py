@@ -98,8 +98,14 @@ def run_model_tflite(model, inputs, CONFIG, truncated, speaker_id=None, style_me
 def parse_outputs_torch(postnet_output, decoder_output, alignments, stop_tokens):
     postnet_output = postnet_output[0].data.cpu().numpy()
     decoder_output = decoder_output[0].data.cpu().numpy()
-    alignment = alignments[0].cpu().data.numpy()
-    stop_tokens = stop_tokens[0].cpu().numpy()
+    try:
+        alignment = alignments[0].cpu().data.numpy()
+    except TypeError:
+        alignment = None
+    try:
+        stop_tokens = stop_tokens[0].cpu().numpy()
+    except TypeError:
+        stop_tokens = None
     return postnet_output, decoder_output, alignment, stop_tokens
 
 

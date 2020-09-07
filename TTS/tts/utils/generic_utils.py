@@ -64,7 +64,7 @@ def generate_masks_mel_length(mel_lengths) -> torch.Tensor:
     batch_size = mel_lengths.size(0)
     max_len = int(torch.max(mel_lengths).item())
     
-    mel_range_expanded = torch.arange(0,max_len).long().expand(batch_size, max_len)
+    mel_range_expanded = torch.arange(0,max_len).long().expand(batch_size, max_len).to(mel_lengths.device)
     return mel_range_expanded < mel_lengths.unsqueeze(1).expand(batch_size, max_len).long()
     
 
@@ -168,7 +168,7 @@ class KeepAverage():
 
 
 def check_config(c):
-    check_argument('model', c, enum_list=['tacotron', 'tacotron2'], restricted=True, val_type=str)
+    check_argument('model', c, enum_list=['tacotron', 'tacotron2', "fastspeech2"], restricted=True, val_type=str)
     check_argument('run_name', c, restricted=True, val_type=str)
     check_argument('run_description', c, val_type=str)
 

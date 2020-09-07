@@ -57,10 +57,12 @@ class MultiheadedAttention(torch.nn.Module):
         self.query_embeddings = torch.nn.Linear(self.embedding_dims, self.n_heads*self.dim_k)
         self.key_embeddings = torch.nn.Linear(self.embedding_dims, self.n_heads*self.dim_k)
         self.values_embeddings = torch.nn.Linear(self.embedding_dims, self.n_heads*self.dim_v)
+        self.sm = torch.nn.Softmax(dim=2)
         self.linear_projection = torch.nn.Linear(self.n_heads*self.dim_v, self.embedding_dims)
-
+        
         self.layer_norm = torch.nn.LayerNorm(self.embedding_dims)
-        self.attention = None
+
+        self.alignment_score = None
 
     def cal_query_key_value(self, input):
         """
@@ -75,20 +77,18 @@ class MultiheadedAttention(torch.nn.Module):
         q, k, v = self.cal_query_key_value(batch)
 
         # Calculate score for attention
-        scores = torch.bmm(q, k.permute(0,2,1)) / self.normalising_term
+        self.alignment_score = torch.bmm(q, k.permute(0,2,1)) / self.normalising_term
         if not mask == None:
-            min_value = float(
-                np.finfo(torch.tensor(0, dtype=scores.dtype).numpy().dtype).min
-            )
-            scores = scores.masked_fill_(~mask.unsqueeze(-1), min_value)
-            self.attention = torch.softmax(scores.squeeze(), dim=2).masked_fill_(~mask.unsqueeze(-1), self._mask_value)
+            self.alignment_score = self.alignment_score.masked_fill_(~mask.unsqueeze(-1), 0)
+            #print (self.alignment_score.squeeze().size())
+            attention = self.sm(self.alignment_score.squeeze())
         else:
-            self.attention = torch.nn.Softmax(scores)
+            attention = self.sm(self.alignment_score)
 
-        context = torch.bmm(self.attention, v)
+        context = torch.bmm(attention, v)
         context = self.linear_projection(context)
 
-        return self.layer_norm(context+batch), self.attention
+        return self.layer_norm(context+batch), attention
 
 
 
@@ -146,7 +146,7 @@ class ScaledPositionalEncoding(torch.nn.Module):
         Class for calculating learned scaled embeddings
     """
     def __init__(self):
-        super(ScaledPositionalEncoding,self).__init__()
+        super(ScaledPositionalEncoding, self).__init__()
         self.scale = torch.nn.Parameter(torch.tensor(1.0))
 
     def reset_scale(self):
@@ -156,10 +156,10 @@ class ScaledPositionalEncoding(torch.nn.Module):
         num_inp_tokens = batch.size(1)
         num_channels = batch.size(2)
         
-        position_encodings = torch.empty(num_inp_tokens, num_channels)
+        position_encodings = batch.new(num_inp_tokens, num_channels)
 
-        positions_inp_tokens = torch.arange(0,num_inp_tokens,dtype=torch.float32)
-        position_channeles = torch.arange(0,num_channels,dtype=torch.float32)
+        positions_inp_tokens = torch.arange(0,num_inp_tokens, dtype=torch.float32)
+        position_channeles = torch.arange(0,num_channels, dtype=torch.float32)
         traingular_position_info = positions_inp_tokens.unsqueeze(1) * torch.pow(100000,2*position_channeles/num_channels).unsqueeze(0)
 
         position_encodings[:, 0::2] = torch.sin(traingular_position_info[:, 0::2])
@@ -180,13 +180,15 @@ class Transformer(torch.nn.Module):
                 dim_k: int = 64,
                 dim_v: int = 64,
                 n_heads: int = 4,
-                num_fft_block: int = 5
+                num_fft_block: int = 5,
+                r: int = 1
             ):
         super(Transformer, self).__init__()
 
         self.embedding_dims = embedding_dims
         self.num_fft_block = num_fft_block
-
+        self.r = 1
+        
         # Select a positional encoding layer
         self.pos_enc_class = ScaledPositionalEncoding()
         self.fft_layers = torch.nn.ModuleList([FFT(self.embedding_dims, conv1_output_channels, hparams_dict,
@@ -247,9 +249,9 @@ class DurationRegulator(torch.nn.Module):
         dur_list   = [token_duration[:len_token] for token_duration, len_token in zip(token_durations, token_lengths)]
 
         expanded_durs = [self.inflate(tokens, durs) for tokens, durs in zip(token_list, dur_list)]
-        mel_lens = torch.Tensor([regulated_mel.size(0) for regulated_mel in expanded_durs])
         padded_batch = pad_list(expanded_durs)
-        return padded_batch, padded_batch.new_tensor(mel_lens)
+        mel_lens = torch.Tensor([regulated_mel.size(0) for regulated_mel in expanded_durs]).to(padded_batch.device)
+        return padded_batch, mel_lens
 
     def inflate(self, tokens: torch.Tensor, durs: torch.Tensor) -> torch.Tensor:
         """
@@ -364,7 +366,7 @@ class VarianceAdaptor(torch.nn.Module):
                 batch += pitch_embeddings.permute(0,2,1)
 
             return batch, duration_p, pitch_p, energy_p, mel_mask
-
+    
 
 class PostNet(torch.nn.Module):
     """

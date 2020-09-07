@@ -238,19 +238,19 @@ class MyDataset(Dataset):
             if self.return_pitch:
                 pitch = [np.load(self.pitch_dir/f"{w}.npy").astype('float32') for w in wav_stems]
                 pitch = prepare_data(pitch).astype(np.float32)
-                pitch = torch.LongTensor(pitch)
+                pitch = torch.FloatTensor(pitch).unsqueeze(-1)
             else:
                 pitch = None
             if self.return_energy:
                 energy = [np.load(self.energy_dir/f"{w}.npy").astype('float32') for w in wav_stems]
                 energy = prepare_data(energy).astype(np.float32)
-                energy = torch.LongTensor(energy)
+                energy = torch.FloatTensor(energy).unsqueeze(-1)
             else:
                 energy = None
             if self.return_duration:
                 duration = [np.load(self.duration_dir/f"{w}.npy").astype('float32') for w in wav_stems]
                 duration = prepare_data(duration).astype(np.float32)
-                duration = torch.LongTensor(duration)
+                duration = torch.FloatTensor(duration).unsqueeze(-1)
 
 
             else:
@@ -292,7 +292,7 @@ class MyDataset(Dataset):
             else:
                 linear = None
             return text, text_lenghts, speaker_name, linear, mel, mel_lengths, \
-                   stop_targets, item_idxs, energy, pitch, duration
+                   stop_targets, energy, pitch, duration, item_idxs
 
         raise TypeError(("batch must contain tensors, numbers, dicts or lists;\
                          found {}".format(type(batch[0]))))
