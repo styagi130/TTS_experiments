@@ -81,7 +81,7 @@
     "lr": 0.00005,                  // Initial learning rate. If Noam decay is active, maximum learning rate.
     "wd": 0.000001,                // Weight decay weight.
     "warmup_steps": 4000,          // Noam decay steps to increase the learning rate from 0 to "lr"
-    "seq_len_norm": false,         // Normalize eash sample loss with its length to alleviate imbalanced datasets. Use it if your dataset is small or has skewed distribution of sequence lengths.
+    "seq_len_norm": true,         // Normalize eash sample loss with its length to alleviate imbalanced datasets. Use it if your dataset is small or has skewed distribution of sequence lengths.
 
     // TACOTRON PRENET
     "memory_size": -1,             // ONLY TACOTRON - size of the memory queue used fro storing last decoder predictions for auto-regression. If < 0, memory queue is disabled and decoder only uses the last prediction frame.
@@ -150,15 +150,17 @@
     "return_pitch":true,
     "return_duration":true,
     "mel_dir": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/feats/mels",
-    "energy_dir": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/feats/energy",
-    "pitch_dir": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/feats/pitch",
+    "energy_dir": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/feats/energy_norm",
+    "pitch_dir": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/feats/pitch_norm",
+    "energy_dir_val": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/feats/energy_norm_val",
+    "pitch_dir_val": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/feats/pitch_norm_val",
     "duration_dir": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/feats/durs",
     "datasets":   // List of datasets. They all merged and they get different speaker_ids.
         [
             {
                 "name": "custom_kwantics_hinglish",
                 "path": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/audio",
-                "meta_file_train": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/tripti_male_complete_train_eng2hindi_speaker.csv",
+                "meta_file_train": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/tripti_male_complete_train_subset_eng2hindi_speaker.csv",
                 "meta_file_val": "/home/kwantics/python3-tasks/mozillaTTS/data/kwanticsMultiSpeaker/triptiMale/tripti_male_complete_val_eng2hindi_speaker.csv"
             }
         ]

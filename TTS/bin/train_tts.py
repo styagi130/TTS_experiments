@@ -66,8 +66,8 @@ def setup_loader(ap, r, is_val=False, verbose=False):
             return_energy=c.return_energy,
             return_duration=c.return_duration,
             mel_dir=c.mel_dir,
-            energy_dir=c.energy_dir,
-            pitch_dir=c.pitch_dir,
+            energy_dir=c.energy_dir_val if is_val else c.energy_dir,
+            pitch_dir=c.pitch_dir_val if is_val else c.pitch_dir,
             duration_dir=c.duration_dir,
             verbose=verbose)
         sampler = DistributedSampler(dataset) if num_gpus > 1 else None

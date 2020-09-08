@@ -291,7 +291,7 @@ class Fastspeech2Loss(torch.nn.Module):
         else:
             self.criterion_va = torch.nn.MSELoss()
             self.criterion_mel = torch.nn.MSELoss()
-        self.ep_wts = 0.1
+        self.ep_wts = 1.0
         self.d_wts = 0.5
 
     def forward(self, mels_p, mels_t, duration_p, duration_t, pitch_p, pitch_t, energy_p, energy_t, input_lengths, mel_lengths):
