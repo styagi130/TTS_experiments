@@ -42,15 +42,16 @@ class Fastspeech2(torch.nn.Module):
             return mels_post, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments
         return mels, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments
 
-    def inference(self, text, speaker_ids=None):
-        input_lengths = torch.IntTensor([text.size(1)])
+    def inference(self, text,input_lengths=None, speaker_ids=None, alpha_pitch=1.0, alpha_energy=1.0, alpha_speed=0.8):
+        if input_lengths is None:
+            input_lengths = torch.IntTensor([text.size(1)])
         print (input_lengths, text.size())
         embedded_inputs = self.symbol_embeddings(text)
         batch, _ = self.encoder(embedded_inputs)
-        batch, _, _, _, _ = self.variation_adaptor(batch, input_lengths)
+        batch, duration_p, pitch_p, energy_p = self.variation_adaptor.inference(batch, input_lengths, alpha_pitch=alpha_pitch, alpha_energy=alpha_energy, alpha_speed=alpha_speed)
         batch, _ = self.decoder(batch)
         mels = self.linear_projection(batch)
-        return mels, mels, None, None
+        return mels, mels, duration_p, (pitch_p, energy_p)
 
     def compute_mask(self, input_lengths):
         device = input_lengths.device

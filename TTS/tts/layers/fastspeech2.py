@@ -243,7 +243,7 @@ class DurationRegulator(torch.nn.Module):
 
     def forward(self, batch: torch.Tensor,token_lengths: torch.Tensor, token_durations: torch.Tensor, alpha: int = 1.0) -> Sequence[torch.Tensor]:
         if alpha != 1.0:
-            token_durations = torch.round(ds.float() * alpha).long()
+            token_durations = torch.round(ds.float() * alpha)
 
         token_list = [token[:len_token] for token, len_token in zip(batch, token_lengths)]
         dur_list   = [token_duration[:len_token] for token_duration, len_token in zip(token_durations, token_lengths)]
@@ -359,13 +359,27 @@ class VarianceAdaptor(torch.nn.Module):
                 batch += energy_embeddings.permute(0,2,1)
 
             if not label_pitch == None:
-                pitch_embeddings = self.energy_bank(label_pitch.permute(0,2,1))
+                pitch_embeddings = self.pitch_bank(label_pitch.permute(0,2,1))
                 batch += pitch_embeddings.permute(0,2,1)
             else:
                 pitch_embeddings = self.pitch_bank(pitch_p.permute(0,2,1))
                 batch += pitch_embeddings.permute(0,2,1)
 
             return batch, duration_p, pitch_p, energy_p, mel_mask
+
+    def inference(self, batch:torch.Tensor, token_lengths:torch.Tensor, alpha_pitch=1.0, alpha_energy=1.0, alpha_speed=1.0) -> Sequence[torch.Tensor]:
+            batch, mel_lengths, duration_p = self.duration_pred_regulator(batch, token_lengths, alpha=alpha_speed)
+            mel_mask = generate_masks_mel_length(mel_lengths)
+
+            pitch_p  = self.pitch_predictor(batch, mask=mel_mask)
+            energy_p = self.energy_predictor(batch, mask=mel_mask)
+
+            pitch_embeddings = self.pitch_bank(pitch_p.permute(0,2,1))*alpha_pitch
+            energy_embeddings = self.energy_bank(label_pitch.permute(0,2,1))*alpha_energy
+
+            batch += pitch_embeddings + energy_embeddings
+
+            return batch, duration_p, pitch_p, energy_p
     
 
 class PostNet(torch.nn.Module):
