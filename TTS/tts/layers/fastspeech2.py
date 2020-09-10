@@ -284,13 +284,14 @@ class DurationPredictor(torch.nn.Module):
                 batch: torch.Tensor,
                 token_lengths: torch.Tensor,
                 mask: Optional[torch.Tensor] = None,
-                label_durations: Optional[torch.Tensor] = None
+                label_durations: Optional[torch.Tensor] = None,
+                alpha: int = 1
                ) -> torch.Tensor:
         predicted_durations = self.duraion_predictor(batch, mask)
         if not label_durations == None:
-            padded_batch, mel_lengths = self.duration_regulator(batch, token_lengths, label_durations)
+            padded_batch, mel_lengths = self.duration_regulator(batch, token_lengths, label_durations, alpha=alpha)
             return padded_batch, mel_lengths, predicted_durations
-        padded_batch, mel_lengths = self.duration_regulator(batch, token_lengths, predicted_durations)
+        padded_batch, mel_lengths = self.duration_regulator(batch, token_lengths, predicted_durations, alpha=alpha)
         return padded_batch, mel_lengths, predicted_durations
 
 
