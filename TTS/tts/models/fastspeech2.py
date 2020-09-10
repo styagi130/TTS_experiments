@@ -42,7 +42,7 @@ class Fastspeech2(torch.nn.Module):
             return mels_post, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments
         return mels, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments
 
-    def inference(self, text,input_lengths=None, speaker_ids=None, alpha_pitch=1.0, alpha_energy=1.0, alpha_speed=0.8):
+    def inference(self, text,input_lengths=None, speaker_ids=None, alpha_pitch=1.0, alpha_energy=1.0, alpha_speed=1.2):
         if input_lengths is None:
             input_lengths = torch.IntTensor([text.size(1)])
         print (input_lengths, text.size())

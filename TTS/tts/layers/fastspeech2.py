@@ -243,7 +243,7 @@ class DurationRegulator(torch.nn.Module):
 
     def forward(self, batch: torch.Tensor,token_lengths: torch.Tensor, token_durations: torch.Tensor, alpha: int = 1.0) -> Sequence[torch.Tensor]:
         if alpha != 1.0:
-            token_durations = torch.round(ds.float() * alpha)
+            token_durations = torch.round(token_durations.float() * alpha)
 
         token_list = [token[:len_token] for token, len_token in zip(batch, token_lengths)]
         dur_list   = [token_duration[:len_token] for token_duration, len_token in zip(token_durations, token_lengths)]
@@ -376,9 +376,9 @@ class VarianceAdaptor(torch.nn.Module):
             energy_p = self.energy_predictor(batch, mask=mel_mask)
 
             pitch_embeddings = self.pitch_bank(pitch_p.permute(0,2,1))*alpha_pitch
-            energy_embeddings = self.energy_bank(label_pitch.permute(0,2,1))*alpha_energy
+            energy_embeddings = self.energy_bank(energy_p.permute(0,2,1))*alpha_energy
 
-            batch += pitch_embeddings + energy_embeddings
+            batch += pitch_embeddings.permute(0,2,1) + energy_embeddings.permute(0,2,1)
 
             return batch, duration_p, pitch_p, energy_p
     
