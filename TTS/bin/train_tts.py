@@ -225,7 +225,7 @@ def train(model, criterion, optimizer, optimizer_st, scheduler,
                 loss_dict['loss'] = reduce_tensor(loss_dict['loss'] .data, num_gpus)
                 loss_dict['stopnet_loss'] = reduce_tensor(loss_dict['stopnet_loss'].data, num_gpus) if c.stopnet else loss_dict['stopnet_loss']
             if "fastspeech2" == c.model.lower():
-                loss_dict['mel_loss'] = reduce_tensor(loss_dict['postnet_loss'].data, num_gpus)
+                loss_dict['mel_loss'] = reduce_tensor(loss_dict['mel_loss'].data, num_gpus)
                 loss_dict['va_loss'] = reduce_tensor(loss_dict['va_loss'].data, num_gpus)
                 loss_dict['loss'] = reduce_tensor(loss_dict['loss'] .data, num_gpus)
                 loss_dict['duration_loss'] = reduce_tensor(loss_dict['duration_loss'].data, num_gpus)
@@ -395,7 +395,7 @@ def evaluate(model, criterion, c, ap, global_step, epoch):
                     if c.stopnet:
                         loss_dict['stopnet_loss'] = reduce_tensor(loss_dict['stopnet_loss'].data, num_gpus)
             elif "fastspeech2" == c.model.lower() and num_gpus > 1:
-                loss_dict['mel_loss'] = reduce_tensor(loss_dict['postnet_loss'].data, num_gpus)
+                loss_dict['mel_loss'] = reduce_tensor(loss_dict['mel_loss'].data, num_gpus)
                 loss_dict['va_loss'] = reduce_tensor(loss_dict['va_loss'].data, num_gpus)
                 loss_dict['loss'] = reduce_tensor(loss_dict['loss'] .data, num_gpus)
                 loss_dict['duration_loss'] = reduce_tensor(loss_dict['duration_loss'].data, num_gpus)
