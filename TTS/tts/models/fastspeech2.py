@@ -51,7 +51,7 @@ class Fastspeech2(torch.nn.Module):
         batch, duration_p, pitch_p, energy_p = self.variation_adaptor.inference(batch, input_lengths, alpha_pitch=alpha_pitch, alpha_energy=alpha_energy, alpha_speed=alpha_speed)
         batch, _ = self.decoder(batch)
         mels = self.linear_projection(batch)
-        return mels, mels, duration_p, (pitch_p, energy_p)
+        return mels.detach(), mels.detach(), duration_p.detach(), (pitch_p.detach(), energy_p.detach())
 
     def compute_mask(self, input_lengths):
         device = input_lengths.device
