@@ -456,7 +456,6 @@ def evaluate(model, criterion, c, ap, global_step, epoch):
                     eval_figures['alignment2'] = plot_alignment(align_b_img)
             tb_logger.tb_eval_stats(global_step, keep_avg.avg_values)
             tb_logger.tb_eval_figures(global_step, eval_figures)
-
     if args.rank == 0 and epoch > c.test_delay_epochs:
         if c.test_sentences_file is None:
             test_sentences = [
