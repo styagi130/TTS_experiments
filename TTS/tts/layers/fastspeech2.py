@@ -211,9 +211,12 @@ class Transformer(torch.nn.Module):
         
         # Select a positional encoding layer
         self.pos_enc_class = ScaledPositionalEncoding()
-        self.fft_layers = torch.nn.ModuleList([FFT(self.embedding_dims, conv1_output_channels, hparams_dict,
+
+        ## FFT Modules
+        fft_lists = [FFT(embedding_dims, conv1_output_channels, hparams_dict,
                                                                         dim_k = dim_k, dim_v = dim_v, n_heads = n_heads)
-                                                                        for _ in range(self.num_fft_block)])
+                                                                        for _ in range(self.num_fft_block)]
+        self.fft_layers = torch.nn.ModuleList(fft_lists)
     def forward(self, batch, mask=None, return_attention=True):
         encoder_outputs = self.pos_enc_class(batch)
         encoder_self_attention = []

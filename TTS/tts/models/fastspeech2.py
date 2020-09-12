@@ -15,11 +15,10 @@ class Fastspeech2(torch.nn.Module):
         self.encoder = Transformer(num_input_channels, num_input_channels, {"fft_conv1d_kernel_size":[encoder_kernel_size, encoder_kernel_size]},
                                     num_fft_block=4, n_heads=2, dim_k=64, dim_v=64)
         self.variation_adaptor = VarianceAdaptor(num_input_channels, num_input_channels, variance_adaptor_kernel_size, pitch_hparams, energy_hparams)
-        self.decoder = Transformer(num_input_channels, num_input_channels, {"fft_conv1d_kernel_size":[decoder_kernel_size, decoder_kernel_size]},
-                                    num_fft_block=4, n_heads=2, dim_k=64, dim_v=64)
+        self.decoder = Transformer(num_input_channels, num_input_channels*2, {"fft_conv1d_kernel_size":[decoder_kernel_size, decoder_kernel_size]},
+                                    num_fft_block=4, n_heads=2, dim_k=64*2, dim_v=64)
         
         self.linear_projection = torch.nn.Linear(num_input_channels, num_out_mels)
-
         self.use_postnet = use_postnet
         if self.use_postnet:
             self.postnet = PostnetResidual(num_out_mels)
