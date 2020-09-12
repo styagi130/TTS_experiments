@@ -166,7 +166,7 @@ def train(model, criterion, optimizer, optimizer_st, scheduler,
 
         # forward pass model
         if c.model.lower() == "fastspeech2":
-            _, mels_post, duration_p, pitch_p, energy_p, _, _ = model(text_input, text_lengths, label_durations=duration, label_pitch=pitch,  label_energy=energy)
+            mels_post, mels, duration_p, pitch_p, energy_p, _, _ = model(text_input, text_lengths, label_durations=duration, label_pitch=pitch,  label_energy=energy)
         else:
             if c.bidirectional_decoder or c.double_decoder_consistency:
                 decoder_output, postnet_output, alignments, stop_tokens, decoder_backward_output, alignments_backward = model(
@@ -186,7 +186,8 @@ def train(model, criterion, optimizer, optimizer_st, scheduler,
 
         # compute loss
         if c.model.lower() == "fastspeech2":
-            loss_dict = criterion(mels_post, mel_input, duration_p, duration, pitch_p, pitch, energy_p, energy, text_lengths, mel_lengths)
+            mels_post_out = None if not c.use_postnet else mels_post
+            loss_dict = criterion(mels, mel_input, duration_p, duration, pitch_p, pitch, energy_p, energy, text_lengths, mel_lengths, mels_post=mels_post_out)
         else:
             loss_dict = criterion(postnet_output, decoder_output, mel_input,
                               linear_input, stop_tokens, stop_targets,
@@ -231,6 +232,9 @@ def train(model, criterion, optimizer, optimizer_st, scheduler,
                 loss_dict['duration_loss'] = reduce_tensor(loss_dict['duration_loss'].data, num_gpus)
                 loss_dict['pitch_loss'] = reduce_tensor(loss_dict['pitch_loss'].data, num_gpus)
                 loss_dict['energy_loss'] = reduce_tensor(loss_dict['energy_loss'].data, num_gpus)
+                if c.use_postnet:
+                    loss_dict['postnet_loss'] = reduce_tensor(loss_dict['postnet_loss'].data, num_gpus)
+
 
 
         # detach loss values
@@ -285,9 +289,10 @@ def train(model, criterion, optimizer, optimizer_st, scheduler,
                                         optimizer_st=optimizer_st,
                                         model_loss=loss_dict['postnet_loss'])
                     elif "fastspeech2" in c.model.lower():
+                        model_loss = loss_dict['mel_loss'] if not c.use_postnet else loss_dict['postnet_loss']
                         save_checkpoint(model, optimizer, global_step, epoch, model.decoder.r, OUT_PATH,
                                         optimizer_st=optimizer_st,
-                                        model_loss=loss_dict['mel_loss'])
+                                        model_loss=model_loss)
 
                 # Diagnostic visualizations
                 const_spec = mels_post[0].data.cpu().numpy() if "fastspeech2" in c.model.lower() else postnet_output[0].data.cpu().numpy()
@@ -374,10 +379,9 @@ def evaluate(model, criterion, c, ap, global_step, epoch):
                                     alignments, alignment_lengths, alignments_backward,
                                     text_lengths)
             elif c.model.lower() == "fastspeech2":
-                _, mels_post, duration_p, pitch_p, energy_p, _, _ = model(text_input, text_lengths, label_durations=duration, label_pitch=pitch,  label_energy=energy)
-                loss_dict = criterion(mels_post, mel_input, duration_p, duration, pitch_p, pitch, energy_p, energy, text_lengths, mel_lengths)
-
-
+                mels_post, mels, duration_p, pitch_p, energy_p, _, _ = model(text_input, text_lengths, label_durations=duration, label_pitch=pitch,  label_energy=energy)
+                mels_post_out = None if not c.use_postnet else mels_post
+                loss_dict = criterion(mels, mel_input, duration_p, duration, pitch_p, pitch, energy_p, energy, text_lengths, mel_lengths, mels_post = mels_post_out)
 
             # step time
             step_time = time.time() - start_time
@@ -401,6 +405,8 @@ def evaluate(model, criterion, c, ap, global_step, epoch):
                 loss_dict['duration_loss'] = reduce_tensor(loss_dict['duration_loss'].data, num_gpus)
                 loss_dict['pitch_loss'] = reduce_tensor(loss_dict['pitch_loss'].data, num_gpus)
                 loss_dict['energy_loss'] = reduce_tensor(loss_dict['energy_loss'].data, num_gpus)
+                if c.use_postnet:
+                    loss_dict['postnet_loss'] = reduce_tensor(loss_dict['postnet_loss'].data, num_gpus)
 
             # detach loss values
             loss_dict_new = dict()

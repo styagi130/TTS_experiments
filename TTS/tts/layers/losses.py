@@ -294,11 +294,13 @@ class Fastspeech2Loss(torch.nn.Module):
         self.ep_wts = 1.0
         self.d_wts = 0.5
 
-    def forward(self, mels_p, mels_t, duration_p, duration_t, pitch_p, pitch_t, energy_p, energy_t, input_lengths, mel_lengths):
+    def forward(self, mels_p, mels_t, duration_p, duration_t, pitch_p, pitch_t, energy_p, energy_t, input_lengths, mel_lengths, mels_post = None):
         return_dict = {}
         
         return_dict["mel_loss"] = self.criterion_mel(mels_p, mels_t, mel_lengths)
- 
+        if mels_post is not None:
+            return_dict["postnet_loss"] = self.criterion_mel(mels_post, mels_t, mel_lengths)
+
         return_dict["duration_loss"] = self.d_wts*self.criterion_va(duration_p, duration_t, input_lengths)
         return_dict["pitch_loss"] = self.ep_wts*self.criterion_va(pitch_p, pitch_t, mel_lengths)
         return_dict["energy_loss"] = self.ep_wts*self.criterion_va(energy_p, energy_t, mel_lengths)
@@ -310,5 +312,8 @@ class Fastspeech2Loss(torch.nn.Module):
         return_dict["va_loss"] = return_dict["duration_loss"] + return_dict["pitch_loss"] + return_dict["energy_loss"]
 
         return_dict["loss"] = return_dict["va_loss"] + return_dict["mel_loss"]
+        if mels_post is not None:
+            return_dict["loss"] += return_dict["postnet_loss"]
+
         return return_dict
 

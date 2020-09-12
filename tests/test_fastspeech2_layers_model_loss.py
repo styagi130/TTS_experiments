@@ -150,8 +150,7 @@ def test_variance_adaptor(batch, do_mask=False):
 
 def test_fastspeech2(batch, do_mask):
     sequence_lengths, mask = None, None
-    if do_mask:
-        sequence_lengths, mask = gen_batch_mask(batch)
+    batch, sequence_lengths, mask = gen_batch_mask(batch_size)
     args_dict = {
                     "num_inputs": 40,
                     "num_out_mels": 80,
@@ -163,7 +162,7 @@ def test_fastspeech2(batch, do_mask):
                     "energy_bank_param_dict": {"kernel_size":3,"drop_out":0.5}
                 }
     kwargs_dict = {
-                    "use_postnet": False
+                    "use_postnet": True
                   }
     model = Fastspeech2(*args_dict.values(), **kwargs_dict)
     print ("\n##############SequenceLe#############\n")
@@ -203,7 +202,7 @@ def test_fastspeech2Loss(batch_size, do_mask):
                     "energy_bank_param_dict": {"kernel_size":3,"drop_out":0.5}
                 }
     kwargs_dict = {
-                    "use_postnet": False
+                    "use_postnet": True
                   }
     model = Fastspeech2(*args_dict.values(), **kwargs_dict)
     print ("\n##############SequenceLe#############\n")
@@ -220,7 +219,8 @@ def test_fastspeech2Loss(batch_size, do_mask):
     mels_post, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments = model(batch, sequence_lengths, 
                                                         label_durations=durations, label_pitch=pitch, label_energy=energy)
     criterion = Fastspeech2Loss(config)
-    loss_dict = criterion(mels, mels.detach(), duration_p, durations.unsqueeze(2), pitch_p, pitch, energy_p, energy, sequence_lengths, mel_lengths)
+    loss_dict = criterion(mels, mels.detach(), duration_p, durations.unsqueeze(2), pitch_p, pitch, energy_p, energy, sequence_lengths, mel_lengths, 
+                          mels_post = mels_post)
     loss_dict = {key:value.item() for key,value in loss_dict.items()}
     print ("\n##############Loss dict is#############\n")
     print (loss_dict)
@@ -237,5 +237,5 @@ if __name__ == "__main__":
     #test_Transformer(batch, do_mask=DO_MASK)
     #test_variance_adaptor(batch, do_mask=DO_MASK)
     #batch = torch.randint(low=0,high=20,size=(batch_size, num_tokens))
-    #test_fastspeech2(batch, do_mask=DO_MASK)
+    #test_fastspeech2(batch_size, do_mask=DO_MASK)
     test_fastspeech2Loss(batch_size, do_mask=DO_MASK)

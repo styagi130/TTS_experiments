@@ -1,6 +1,6 @@
 from typing import Sequence, Optional
 import torch
-from TTS.tts.layers.fastspeech2 import Transformer, VarianceAdaptor, PostNet
+from TTS.tts.layers.fastspeech2 import Transformer, VarianceAdaptor, PostnetResidual
 from TTS.tts.utils.generic_utils import sequence_mask
 
 class Fastspeech2(torch.nn.Module):
@@ -22,7 +22,7 @@ class Fastspeech2(torch.nn.Module):
 
         self.use_postnet = use_postnet
         if self.use_postnet:
-            self.postnet = PostNet()
+            self.postnet = PostnetResidual(num_out_mels)
 
     def forward(self, batch: torch.Tensor, input_lengths: torch.Tensor, 
                     label_durations: Optional[torch.Tensor] = None, label_pitch: Optional[torch.Tensor] = None, label_energy: Optional[torch.Tensor] = None,
@@ -38,7 +38,9 @@ class Fastspeech2(torch.nn.Module):
         batch, decoder_alignments = self.decoder(batch, decoder_mask)
         mels = self.linear_projection(batch)
         if self.use_postnet:
-            mels_post = self.postnet(mels)
+            mels_post = mels.permute(0,2,1)
+            mels_post = self.postnet(mels_post)
+            mels_post = mels_post.permute(0,2,1)
             return mels_post, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments
         return mels, mels, duration_p, pitch_p, energy_p, encoder_alignments, decoder_alignments
 
@@ -51,6 +53,11 @@ class Fastspeech2(torch.nn.Module):
         batch, duration_p, pitch_p, energy_p = self.variation_adaptor.inference(batch, input_lengths, alpha_pitch=alpha_pitch, alpha_energy=alpha_energy, alpha_speed=alpha_speed)
         batch, _ = self.decoder(batch)
         mels = self.linear_projection(batch)
+        if self.use_postnet:
+            mels_post = mels.permute(0,2,1)
+            mels_post = self.postnet(mels_post)
+            mels_post = mels_post.permute(0,2,1)
+            return mels_post.detach(), mels.detach(), duration_p.detach(), (pitch_p.detach(), energy_p.detach())
         return mels.detach(), mels.detach(), duration_p.detach(), (pitch_p.detach(), energy_p.detach())
 
     def compute_mask(self, input_lengths):

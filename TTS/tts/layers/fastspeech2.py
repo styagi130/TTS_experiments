@@ -5,7 +5,7 @@ import math
 import numpy as np
 from collections import OrderedDict
 from typing import Union, Optional, Sequence
-from .tacotron2 import ConvBNBlock
+from .tacotron2 import ConvBNBlock, Postnet
 from TTS.tts.utils.generic_utils import pad_list, generate_masks_mel_length
 
 class ConvLNBlock(ConvBNBlock):
@@ -32,6 +32,26 @@ class ConvLNBlock(ConvBNBlock):
         x = self.normalization(x)
         x = self.dropout(x)
         return x
+
+class PostnetResidual(Postnet):
+    """
+        Class with residual postnet
+    """
+    def __init__(self, *args, **kwargs):
+        """
+            Residual postnet instantiator
+        """
+        super(PostnetResidual, self).__init__(*args,**kwargs)
+
+    def forward(self, x):
+        """
+            Overwrite the forward method to allow residuals
+        """
+        residual = x
+        for layer in self.convolutions:
+            residual = layer(residual)
+        return residual+x
+
 
 class MultiheadedAttention(torch.nn.Module):
     """
