@@ -120,6 +120,47 @@ class RMSELossMasked(nn.Module):
             loss = loss / mask.sum()
         return torch.sqrt(loss)
 
+class RMSLELossMasked(torch.nn.Module):
+    def __init__(self, seq_len_norm):
+        super(RMSLELossMasked, self).__init__()
+        self.seq_len_norm = seq_len_norm
+
+    def forward(self, x, target, length):
+        """
+        Args:
+            x: A Variable containing a FloatTensor of size
+                (batch, max_len, dim) which contains the
+                unnormalized probability for each class.
+            target: A Variable containing a LongTensor of size
+                (batch, max_len, dim) which contains the index of the true
+                class for each corresponding step.
+            length: A Variable containing a LongTensor of size (batch,)
+                which contains the length of each data in a batch.
+        Returns:
+            loss: An average loss value in range [0, 1] masked by the length.
+        """
+        # mask: (batch, max_len, 1)
+        target.requires_grad = False
+        mask = sequence_mask(
+            sequence_length=length, max_len=target.size(1)).unsqueeze(2).float()
+        eps = 0.000001
+        x = torch.clamp(x,min=eps)
+        target = torch.clamp(target,min=eps)
+        if self.seq_len_norm:
+            norm_w = mask / mask.sum(dim=1, keepdim=True)
+            out_weights = norm_w.div(target.shape[0] * target.shape[2])
+            mask = mask.expand_as(x)
+            loss = functional.mse_loss(
+                torch.log(x+1) * mask, torch.log(target+1) * mask, reduction='none')
+            loss = loss.mul(out_weights.to(loss.device)).sum()
+        else:
+            mask = mask.expand_as(x)
+            loss = functional.mse_loss(
+                torch.log(x+1) * mask, torch.log(target+1) * mask, reduction='sum')
+            loss = loss / mask.sum()
+        loss = torch.sqrt(loss)
+        #loss = torch.clamp(loss, min=0.01)
+        return loss
 
 class AttentionEntropyLoss(nn.Module):
     # pylint: disable=R0201
@@ -286,13 +327,15 @@ class Fastspeech2Loss(torch.nn.Module):
     def __init__(self, c, *args, **kwargs):
         super(Fastspeech2Loss,self).__init__()
         if c.loss_masking:
-            self.criterion_va = RMSELossMasked(c.seq_len_norm)
+            self.criterion_ep = RMSELossMasked(c.seq_len_norm)
+            self.criterion_dur = RMSLELossMasked(c.seq_len_norm)
             self.criterion_mel = MSELossMasked(c.seq_len_norm)
         else:
-            self.criterion_va = torch.nn.MSELoss()
+            self.criterion_ep = torch.nn.MSELoss()
+            self.criterion_dur = torch.nn.MSELoss()
             self.criterion_mel = torch.nn.MSELoss()
         self.ep_wts = 1.0
-        self.d_wts = 0.5
+        self.d_wts = 1.0
 
     def forward(self, mels_p, mels_t, duration_p, duration_t, pitch_p, pitch_t, energy_p, energy_t, input_lengths, mel_lengths, mels_post = None):
         return_dict = {}
@@ -301,9 +344,9 @@ class Fastspeech2Loss(torch.nn.Module):
         if mels_post is not None:
             return_dict["postnet_loss"] = self.criterion_mel(mels_post, mels_t, mel_lengths)
 
-        return_dict["duration_loss"] = self.d_wts*self.criterion_va(duration_p, duration_t, input_lengths)
-        return_dict["pitch_loss"] = self.ep_wts*self.criterion_va(pitch_p, pitch_t, mel_lengths)
-        return_dict["energy_loss"] = self.ep_wts*self.criterion_va(energy_p, energy_t, mel_lengths)
+        return_dict["duration_loss"] = self.d_wts*self.criterion_dur(duration_p, duration_t, input_lengths)
+        return_dict["pitch_loss"] = self.ep_wts*self.criterion_ep(pitch_p, pitch_t, mel_lengths)
+        return_dict["energy_loss"] = self.ep_wts*self.criterion_ep(energy_p, energy_t, mel_lengths)
 
         return_dict["duration_loss"] = torch.clamp(return_dict["duration_loss"], min=0.0001, max=100)
         return_dict["pitch_loss"] = torch.clamp(return_dict["pitch_loss"], min=0.0001, max=100)
@@ -314,6 +357,5 @@ class Fastspeech2Loss(torch.nn.Module):
         return_dict["loss"] = return_dict["va_loss"] + return_dict["mel_loss"]
         if mels_post is not None:
             return_dict["loss"] += return_dict["postnet_loss"]
-
         return return_dict
 
