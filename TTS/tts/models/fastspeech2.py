@@ -7,15 +7,16 @@ class Fastspeech2(torch.nn.Module):
     """
         Base class for fastSpeech2
     """
-    def __init__(self, num_inputs: int, num_out_mels: int, num_input_channels: int, encoder_kernel_size: int, decoder_kernel_size: int,
+    def __init__(self, num_inputs: int, num_out_mels: int, num_input_channels: int, encoder_kernel_size: int, encoder_output_channels: int,
+                decoder_kernel_size: int, decoder_output_channels: int,
                 variance_adaptor_kernel_size: int, pitch_hparams: dict, energy_hparams: int, use_postnet: bool = False):
         super(Fastspeech2, self).__init__()
         self.symbol_embeddings = torch.nn.Embedding(num_inputs, num_input_channels)
 
-        self.encoder = Transformer(num_input_channels, num_input_channels, {"fft_conv1d_kernel_size":[encoder_kernel_size, encoder_kernel_size]},
+        self.encoder = Transformer(num_input_channels, encoder_output_channels, {"fft_conv1d_kernel_size":[encoder_kernel_size, encoder_kernel_size]},
                                     num_fft_block=4, n_heads=2, dim_k=64, dim_v=64)
         self.variation_adaptor = VarianceAdaptor(num_input_channels, num_input_channels, variance_adaptor_kernel_size, pitch_hparams, energy_hparams)
-        self.decoder = Transformer(num_input_channels, num_input_channels*2, {"fft_conv1d_kernel_size":[decoder_kernel_size, decoder_kernel_size]},
+        self.decoder = Transformer(num_input_channels, decoder_output_channels, {"fft_conv1d_kernel_size":[decoder_kernel_size, decoder_kernel_size]},
                                     num_fft_block=4, n_heads=2, dim_k=64*2, dim_v=64)
         
         self.linear_projection = torch.nn.Linear(num_input_channels, num_out_mels)
