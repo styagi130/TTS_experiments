@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 
 from inspect import signature
 
+sys.path.append("../../")
 from TTS.utils.audio import AudioProcessor
 from TTS.utils.generic_utils import (KeepAverage, count_parameters,
                                      create_experiment_folder, get_git_branch,
