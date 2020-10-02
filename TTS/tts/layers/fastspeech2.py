@@ -94,18 +94,22 @@ class MultiheadedAttention(torch.nn.Module):
         return query, key, value
 
     def forward(self, batch, mask=None):
+        batch_size = batch.size(0)
         q, k, v = self.cal_query_key_value(batch)
-
+        # Reshape
+        q = q.view(batch_size, -1,  self.n_heads, self.dim_k)
+        k = k.view(batch_size, -1, self.n_heads, self.dim_k)
+        v = v.view(batch_size, -1, self.n_heads, self.dim_v)
         # Calculate score for attention
-        self.alignment_score = torch.bmm(q, k.permute(0,2,1)) / self.normalising_term
+        self.alignment_score = torch.matmul(q, k.permute(0, 1, 3, 2)) / self.normalising_term
         if not mask == None:
             self.alignment_score = self.alignment_score.masked_fill_(~mask.unsqueeze(-1), 0)
             #print (self.alignment_score.squeeze().size())
             attention = self.sm(self.alignment_score.squeeze())
         else:
             attention = self.sm(self.alignment_score)
-
-        context = torch.bmm(attention, v)
+        context = torch.matmul(attention, v)
+        context = context.view(batch_size, -1, self.n_heads*self.dim_v)
         context = self.linear_projection(context)
 
         return self.layer_norm(context+batch), attention

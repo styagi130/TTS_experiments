@@ -129,3 +129,10 @@ tests/outputs/*
 TODO.txt
 .vscode/*
 data/*
+
+
+*.ipynb
+*.out
+*.npy
+*.wav
+*.zip

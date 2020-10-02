@@ -229,13 +229,13 @@ def test_fastspeech2Loss(batch_size, do_mask):
 if __name__ == "__main__":
     batch_size, num_tokens, embedding_dim = 4, 10, 10
     batch = gen_batch(batch_size, num_tokens, embedding_dim)
-    DO_MASK = True
+    DO_MASK = False
 
-    #test_MultiheadedAttention(batch,do_mask=do_mask)
+    test_MultiheadedAttention(batch,do_mask=DO_MASK)
     #test_Convd1d2Layers(batch)
     #test_FFT(batch,do_mask=do_mask)
     #test_Transformer(batch, do_mask=DO_MASK)
     #test_variance_adaptor(batch, do_mask=DO_MASK)
     #batch = torch.randint(low=0,high=20,size=(batch_size, num_tokens))
     #test_fastspeech2(batch_size, do_mask=DO_MASK)
-    test_fastspeech2Loss(batch_size, do_mask=DO_MASK)
+    #test_fastspeech2Loss(batch_size, do_mask=DO_MASK)
