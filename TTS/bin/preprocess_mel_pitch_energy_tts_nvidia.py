@@ -26,7 +26,7 @@ def get_files(path, extension=".wav"):
 
 
 def _process_file(path):
-    wav = ap.load_wav(path)
+    wav, _ = ap.load_wav(path)
     mel, energy, f0 = ap.get_mel_energy_pitch(wav)
     # check
     assert len(wav.shape) == 1, \
@@ -43,8 +43,12 @@ def _process_file(path):
     return mel.astype(np.float32), energy.astype(np.float32), f0.astype(np.float32), wav
 
 
-def extract_feats(wav_path, mel_path, energy_path, pitch_path):
+def extract_feats(wav_path, mel_path, energy_path, pitch_path, dur_file):
     m, energy, f0, wav = _process_file(wav_path)
+
+    if dur_file.exists():
+        durs = np.load(dur_file)
+        assert m.shape[1] == int(durs.sum()), f"Duration and num mels mismatch: num of mel frames: {mel.shape} and duration: {int(durs.sum())}"
 
     np.save(mel_path, m, allow_pickle=False)
     np.save(energy_path, energy, allow_pickle=False)
@@ -76,8 +80,9 @@ if __name__ == "__main__":
         MEL_PATH = basepath / dataset["mel_dir"]
         Energy_Path = basepath / dataset["energy_dir"]
         Pitch_Path = basepath / dataset["pitch_dir"]
+        Dur_Path = basepath / dataset["dur_dir"]
         # TODO: use TTS data processors
-        seg_file_path = os.path.join(dataset["basepath"], dataset["audio_dir"])
+        seg_file_path = dataset["path"]
         wav_files = get_files(seg_file_path)
         print(" > Number of audio files : {}".format(len(wav_files)))
 
@@ -104,7 +109,9 @@ if __name__ == "__main__":
             mel_file = MEL_PATH / f"{file_stem}.npy"
             energy_file = Energy_Path / f"{file_stem}.npy"
             pitch_file = Pitch_Path / f"{file_stem}.npy"
-            extract_feats(wav_file, mel_file, energy_file, pitch_file)
+            dur_file = Dur_Path / f"{file_stem}.npy"
+
+            extract_feats(wav_file, mel_file, energy_file, pitch_file, dur_file)
         # save metadata
         #with open(os.path.join(OUT_PATH, "metadata.txt"), "w") as f:
         #   for data in dataset_ids:
