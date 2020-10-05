@@ -103,7 +103,7 @@ class MultiheadedAttention(torch.nn.Module):
         # Calculate score for attention
         self.alignment_score = torch.matmul(q, k.permute(0, 1, 3, 2)) / self.normalising_term
         if not mask == None:
-            self.alignment_score = self.alignment_score.masked_fill_(~mask.unsqueeze(-1), 0)
+            self.alignment_score = self.alignment_score.masked_fill_(~mask.unsqueeze(-1).unsqueeze(-1), 0)
             #print (self.alignment_score.squeeze().size())
             attention = self.sm(self.alignment_score.squeeze())
         else:
